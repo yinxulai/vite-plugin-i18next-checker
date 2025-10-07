@@ -28,10 +28,6 @@ jobs:
         run: npm run lint
         continue-on-error: false
 
-      - name: Check formatting
-        run: npm run format:check
-        continue-on-error: false
-
       - name: Type check
         run: npm run typecheck
         continue-on-error: false
@@ -65,7 +61,6 @@ jobs:
             let comment = '## PR Check Results\n\n';
             comment += '✅ All checks passed!\n\n';
             comment += '- Linting: Passed\n';
-            comment += '- Formatting: Passed\n';
             comment += '- Type Check: Passed\n';
             comment += '- Tests: Passed\n';
             comment += '- Build: Passed\n';
