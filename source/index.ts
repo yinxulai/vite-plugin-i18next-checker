@@ -235,6 +235,3 @@ export function i18nextChecker(options: I18nextCheckerOptions = {}): Plugin {
     },
   }
 }
-
-// Export default
-export default i18nextChecker
