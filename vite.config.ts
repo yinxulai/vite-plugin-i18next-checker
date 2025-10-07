@@ -1,14 +1,15 @@
-import { defineConfig } from 'vite';
-import dts from 'vite-plugin-dts';
+import { defineConfig } from 'vite'
+import dts from 'vite-plugin-dts'
 
 export default defineConfig({
   plugins: [
     dts({
       insertTypesEntry: true,
-      rollupTypes: true,
+      outDir: 'output',
     }),
   ],
   build: {
+    outDir: 'output',
     lib: {
       entry: 'source/index.ts',
       name: 'VitePluginI18nextChecker',
@@ -32,4 +33,4 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
     },
   },
-});
+})
