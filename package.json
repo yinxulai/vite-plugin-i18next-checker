@@ -1,6 +1,7 @@
 {
   "name": "vite-plugin-i18next-checker",
   "version": "1.0.0",
+  "type": "module",
   "description": "A Vite plugin for checking i18next translations",
   "main": "output/index.js",
   "module": "output/index.mjs",
@@ -21,8 +22,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint source --ext .ts",
-    "lint:fix": "eslint source --ext .ts --fix",
+    "lint": "eslint source",
+    "lint:fix": "eslint source --fix",
     "format": "prettier --write 'source/**/*.ts'",
     "format:check": "prettier --check 'source/**/*.ts'",
     "typecheck": "tsc --noEmit",
