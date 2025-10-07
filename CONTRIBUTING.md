@@ -126,7 +126,7 @@ npm run dev
 ## Code Style
 
 - Use TypeScript for all source files
-- Follow the existing code style (enforced by ESLint and Prettier)
+- Follow the existing code style (enforced by ESLint)
 - Write clear, self-documenting code
 - Add comments for complex logic
 - Use meaningful variable and function names

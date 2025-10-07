@@ -10,7 +10,7 @@ Runs on every push and pull request to main/master/develop branches.
 
 **Jobs:**
 
-- **Lint**: Runs ESLint and Prettier checks
+- **Lint**: Runs ESLint checks
 - **Type Check**: Runs TypeScript type checking
 - **Test**: Runs unit tests on Node.js 18 and 20
   - Generates coverage report

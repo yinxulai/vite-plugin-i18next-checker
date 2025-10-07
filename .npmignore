@@ -19,7 +19,6 @@ __tests__/
 
 # Development tools
 .eslintrc*
-.prettierrc*
 tsconfig*
 vite.config*
 vitest.config*
