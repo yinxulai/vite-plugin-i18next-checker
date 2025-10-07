@@ -24,13 +24,15 @@ export default defineConfig({
         },
       },
     },
-    target: 'node16',
+    target: 'node18',
   },
   test: {
     environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      include: ['source/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/*.spec.ts', 'test/**'],
     },
   },
 })

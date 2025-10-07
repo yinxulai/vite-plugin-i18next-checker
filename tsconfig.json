@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM"],
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -24,6 +24,7 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": false,
     "noEmit": false,
+    "verbatimModuleSyntax": true,
     "types": ["node", "vite/client"]
   },
   "include": [
