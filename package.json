@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-i18next-checker",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "module",
   "description": "A Vite plugin for checking i18next translations",
   "main": "output/index.js",
@@ -8,9 +8,9 @@
   "types": "output/index.d.ts",
   "exports": {
     ".": {
+      "types": "./output/index.d.ts",
       "import": "./output/index.mjs",
-      "require": "./output/index.js",
-      "types": "./output/index.d.ts"
+      "require": "./output/index.js"
     }
   },
   "files": [
@@ -48,18 +48,18 @@
   "homepage": "https://github.com/yinxulai/vite-plugin-i18next-checker#readme",
   "devDependencies": {
     "@eslint/js": "^9.37.0",
-    "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@vitest/coverage-v8": "^1.0.0",
-    "@vitest/ui": "^1.0.0",
-    "eslint": "^8.0.0",
+    "@types/node": "^24.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.37.0",
     "globals": "^16.4.0",
-    "typescript": "^5.0.0",
+    "typescript": "^5.7.3",
     "typescript-eslint": "^8.46.0",
-    "vite": "^5.0.0",
-    "vite-plugin-dts": "^3.0.0",
-    "vitest": "^1.0.0"
+    "vite": "^7.1.9",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "vite": "^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0"
