@@ -1,0 +1,25 @@
+# Source files
+source/
+
+# Documentation
+*.md
+
+# Configuration files
+*.json
+*.js
+*.ts
+!output/**
+
+# Tests
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+
+# Development tools
+.eslintrc*
+.prettierrc*
+tsconfig*
+vite.config*
+vitest.config*
