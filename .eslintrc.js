@@ -1,23 +1,23 @@
-module.exports = {
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaVersion: 2020,
-    sourceType: 'module',
+import globals from 'globals'
+import eslint from '@eslint/js'
+import tsEslint from 'typescript-eslint'
+
+
+export default [
+  eslint.configs.recommended,
+  ...tsEslint.configs.recommended,
+  { languageOptions: { globals: globals.node } },
+  {
+    rules: {
+      'semi': ['error', 'never'],
+      'quotes': ['error', 'single']
+    }
   },
-  plugins: ['@typescript-eslint'],
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-  ],
-  env: {
-    node: true,
-    es6: true,
-  },
-  rules: {
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
-  },
-};
+  {
+    ignores: [
+      'node_modules/**',
+      'coverage/**',
+      'output/**'
+    ]
+  }
+]
