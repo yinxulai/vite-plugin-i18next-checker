@@ -472,7 +472,7 @@ describe('reportDifferences', () => {
     expect(result.unusedKeys.size).toBe(0)
   })
 
-  it('应该生成详细的报告', () => {
+  it('应该生成详细的检查结果', () => {
     const usedKeys = extractI18nKeys(fixturesPath)
     const localeKeys = readLocaleFiles(localeDir, languages, namespaces)
 
@@ -487,9 +487,29 @@ describe('reportDifferences', () => {
 
     const result = reportDifferences(usedKeys, localeKeys, options)
 
-    expect(result.report).toBeTruthy()
-    expect(result.report).toContain('missing.key')
-    expect(result.report).toContain('unused.key')
+    expect(result.hasErrors).toBe(true)
+    expect(result.missingKeys.size).toBeGreaterThan(0)
+    expect(result.unusedKeys.size).toBeGreaterThan(0)
+    
+    // 验证 missing.key 存在于某个语言的缺失键中
+    let hasMissingKey = false
+    for (const keys of result.missingKeys.values()) {
+      if (keys.includes('missing.key')) {
+        hasMissingKey = true
+        break
+      }
+    }
+    expect(hasMissingKey).toBe(true)
+    
+    // 验证 unused.key 存在于某个语言的未使用键中
+    let hasUnusedKey = false
+    for (const keys of result.unusedKeys.values()) {
+      if (keys.includes('unused.key')) {
+        hasUnusedKey = true
+        break
+      }
+    }
+    expect(hasUnusedKey).toBe(true)
   })
 
   it('当所有 keys 都匹配时应该报告成功', () => {
@@ -516,8 +536,8 @@ describe('reportDifferences', () => {
     const result = reportDifferences(usedKeys, localeKeys, options)
 
     expect(result.hasErrors).toBe(false)
-    expect(result.report).toContain('✅')
-    expect(result.report).toContain('check passed')
+    expect(result.missingKeys.size).toBe(0)
+    expect(result.usedKeys.size).toBe(2)
   })
 
   it('应该检测多语言之间的不一致', () => {
@@ -624,9 +644,12 @@ describe('reportDifferences', () => {
 
     const result = reportDifferences(usedKeys, localeKeys, options)
 
-    expect(result.report).toContain('missing.key')
-    expect(result.report).toContain('/path/to/file.ts')
-    expect(result.report).toContain('42')
+    expect(result.hasErrors).toBe(true)
+    expect(result.missingKeys.get('zh-CN')).toContain('missing.key')
+    // 验证文件位置信息在 usedKeys 中
+    const missingKeyInfo = usedKeys.find(k => k.key === 'missing.key')
+    expect(missingKeyInfo?.file).toBe('/path/to/file.ts')
+    expect(missingKeyInfo?.line).toBe(42)
   })
 
   it('应该正确返回检查结果的所有字段', () => {
@@ -650,7 +673,6 @@ describe('reportDifferences', () => {
     const result = reportDifferences(usedKeys, localeKeys, options)
 
     expect(result).toHaveProperty('hasErrors')
-    expect(result).toHaveProperty('report')
     expect(result).toHaveProperty('missingKeys')
     expect(result).toHaveProperty('unusedKeys')
     expect(result).toHaveProperty('usedKeys')
@@ -662,10 +684,10 @@ describe('reportDifferences', () => {
     expect(result.definedKeys).toBeInstanceOf(Map)
   })
 
-  it('未使用的 key 报告应该限制显示数量', () => {
+  it('未使用的 key 应该被正确识别', () => {
     const usedKeys = [{ key: 'used.key', file: 'test.ts', line: 1 }]
 
-    // 创建超过 20 个未使用的 keys
+    // 创建超过 10 个未使用的 keys
     const keys = new Set<string>(['used.key'])
     for (let i = 0; i < 25; i++) {
       keys.add(`unused.key.${i}`)
@@ -684,8 +706,8 @@ describe('reportDifferences', () => {
 
     const result = reportDifferences(usedKeys, localeKeys, options)
 
-    // 报告应该提示有更多未显示的 keys
-    expect(result.report).toContain('and')
-    expect(result.report).toContain('more unused keys')
+    // 验证未使用的 keys 数量
+    expect(result.unusedKeys.get('zh-CN')?.length).toBe(25)
+    expect(result.hasErrors).toBe(false) // 未使用的 key 不应该标记为错误
   })
 })

@@ -48,7 +48,6 @@ export interface LocaleData {
 }
 
 export interface CheckResult {
-  report: string
   hasErrors: boolean
   usedKeys: Set<string>
   unusedKeys: Map<string, string[]>

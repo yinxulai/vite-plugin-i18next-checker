@@ -114,7 +114,56 @@ export function readLocaleFiles(
 }
 
 /**
- * Compare and report differences
+ * Logger for formatted output
+ */
+class Logger {
+  private static readonly colors = {
+    reset: '\x1b[0m',
+    bright: '\x1b[1m',
+    dim: '\x1b[2m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    cyan: '\x1b[36m',
+    gray: '\x1b[90m',
+  }
+
+  static title(text: string) {
+    console.log(`\n${this.colors.bright}${this.colors.cyan}${text}${this.colors.reset}`)
+  }
+
+  static success(text: string) {
+    console.log(`${this.colors.green}✓${this.colors.reset} ${text}`)
+  }
+
+  static error(text: string) {
+    console.log(`${this.colors.red}✗${this.colors.reset} ${text}`)
+  }
+
+  static warning(text: string) {
+    console.log(`${this.colors.yellow}⚠${this.colors.reset} ${text}`)
+  }
+
+  static info(text: string) {
+    console.log(`${this.colors.gray}${text}${this.colors.reset}`)
+  }
+
+  static dim(text: string) {
+    console.log(`${this.colors.dim}${text}${this.colors.reset}`)
+  }
+
+  static divider() {
+    console.log(`${this.colors.gray}${'─'.repeat(60)}${this.colors.reset}`)
+  }
+
+  static summary(text: string) {
+    console.log(`\n${this.colors.bright}${text}${this.colors.reset}`)
+  }
+}
+
+/**
+ * Compare and report differences with real-time output
  */
 export function reportDifferences(
   usedKeys: I18nKey[],
@@ -122,10 +171,16 @@ export function reportDifferences(
   options: Required<I18nextCheckerOptions>
 ): CheckResult {
   const usedKeySet = new Set(usedKeys.map(k => k.key))
-  const messages: string[] = []
   let hasErrors = false
   const missingKeys = new Map<string, string[]>()
   const unusedKeys = new Map<string, string[]>()
+  let totalMissing = 0
+  let totalUnused = 0
+
+  // Header
+  Logger.title('🌍 i18next Translation Checker')
+  Logger.info(`   Scanning ${usedKeySet.size} translation keys across ${localeKeys.size} languages`)
+  Logger.divider()
 
   // Check each language
   for (const [lang, definedKeys] of localeKeys) {
@@ -148,43 +203,72 @@ export function reportDifferences(
       }
     }
 
+    // Real-time output for this language
+    console.log(`\n${Logger['colors'].blue}Language: ${lang}${Logger['colors'].reset}`)
+    Logger.info(`  Defined keys: ${definedKeys.size} | Used keys: ${usedKeySet.size}`)
+
+    // Report missing keys in real-time
     if (missing.length > 0) {
       hasErrors = true
       missingKeys.set(lang, missing)
-      messages.push(`\n📍 Language [${lang}] missing translation keys (${missing.length} keys):`)
+      totalMissing += missing.length
+
+      console.log(`  ${Logger['colors'].red}Missing translations: ${missing.length}${Logger['colors'].reset}`)
+
       missing.sort().forEach(key => {
         const usage = usedKeys.find(k => k.key === key)
         if (usage) {
-          messages.push(`  ❌ ${key}`)
-          messages.push(`     Used at: ${usage.file}:${usage.line}`)
+          Logger.error(`${key}`)
+          Logger.dim(`    └─ ${usage.file}:${usage.line}`)
         }
       })
+    } else {
+      Logger.success('All translations present')
     }
 
-    if (unused.length > 0 && options.checkUnused) {
-      unusedKeys.set(lang, unused)
-      messages.push(`\n🗑️  Language [${lang}] unused translation keys (${unused.length} keys):`)
-      unused.sort().slice(0, 20).forEach(key => {
-        messages.push(`  ⚠️  ${key}`)
-      })
-      if (unused.length > 20) {
-        messages.push(`  ... and ${unused.length - 20} more unused keys`)
+    // Report unused keys in real-time
+    if (options.checkUnused) {
+      if (unused.length > 0) {
+        unusedKeys.set(lang, unused)
+        totalUnused += unused.length
+
+        console.log(`  ${Logger['colors'].yellow}Unused translations: ${unused.length}${Logger['colors'].reset}`)
+
+        const displayLimit = 10
+        unused.sort().slice(0, displayLimit).forEach(key => {
+          Logger.warning(`${key}`)
+        })
+        if (unused.length > displayLimit) {
+          Logger.dim(`    ... and ${unused.length - displayLimit} more`)
+        }
+      } else {
+        Logger.success('No unused translations')
       }
     }
   }
 
-  // Statistics
-  if (messages.length === 0) {
-    messages.push('\n✅ i18next check passed! All translation keys match.')
-    messages.push(`   - Used keys: ${usedKeySet.size}`)
-    for (const [lang, keys] of localeKeys) {
-      messages.push(`   - ${lang} defined keys: ${keys.size}`)
+  // Summary section
+  Logger.divider()
+  Logger.summary('📊 Summary')
+
+  if (hasErrors) {
+    console.log(`${Logger['colors'].red}✗ Check failed${Logger['colors'].reset}`)
+    console.log(`  ${Logger['colors'].red}Missing: ${totalMissing}${Logger['colors'].reset}`)
+    if (totalUnused > 0) {
+      console.log(`  ${Logger['colors'].yellow}Unused: ${totalUnused}${Logger['colors'].reset}`)
     }
+  } else if (totalUnused > 0) {
+    console.log(`${Logger['colors'].green}✓ All required translations present${Logger['colors'].reset}`)
+    console.log(`  ${Logger['colors'].yellow}Unused: ${totalUnused}${Logger['colors'].reset}`)
+  } else {
+    console.log(`${Logger['colors'].green}✓ Perfect! All translations match${Logger['colors'].reset}`)
+    console.log(`  ${Logger['colors'].green}Keys checked: ${usedKeySet.size}${Logger['colors'].reset}`)
   }
+
+  console.log('') // Empty line at the end
 
   return {
     hasErrors,
-    report: messages.join('\n'),
     missingKeys,
     unusedKeys,
     usedKeys: usedKeySet,
@@ -224,10 +308,8 @@ export function i18nextChecker(options: I18nextCheckerOptions = {}): Plugin {
       // Read locale files
       const localeKeys = readLocaleFiles(localePath, opts.languages, opts.namespaces)
 
-      // Compare and report
-      const { hasErrors, report } = reportDifferences(usedKeys, localeKeys, opts)
-
-      console.log(report)
+      // Compare and report (output is handled internally)
+      const { hasErrors } = reportDifferences(usedKeys, localeKeys, opts)
 
       if (hasErrors && opts.failOnError) {
         throw new Error('i18next check failed: missing translation keys found')
