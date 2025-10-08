@@ -102,7 +102,7 @@ export function readLocaleFiles(
           const keys = flattenObject(data)
           keys.forEach(k => allKeys.add(k))
         } catch (error) {
-          console.error(`[i18n-checker] Failed to parse ${filePath}:`, error)
+          Logger.error(`Failed to parse ${filePath}: ${error}`)
         }
       }
     }
@@ -111,6 +111,105 @@ export function readLocaleFiles(
   }
 
   return localeKeys
+}
+
+/**
+ * Remove unused keys from nested object and return the count
+ */
+function removeUnusedKeysFromObject(
+  obj: LocaleData,
+  usedKeys: Set<string>,
+  prefix = ''
+): { cleaned: LocaleData; removed: string[] } {
+  const result: LocaleData = {}
+  const removed: string[] = []
+
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Recursively process nested objects
+      const nested = removeUnusedKeysFromObject(value as LocaleData, usedKeys, fullKey)
+      // Collect removed keys from nested objects
+      removed.push(...nested.removed)
+      // Only include this nested object if it has any keys left
+      if (Object.keys(nested.cleaned).length > 0) {
+        result[key] = nested.cleaned
+      }
+    } else {
+      // Keep this key if it's used
+      if (usedKeys.has(fullKey)) {
+        result[key] = value
+      } else {
+        // Mark as removed
+        removed.push(fullKey)
+      }
+    }
+  }
+
+  return { cleaned: result, removed }
+}
+
+/**
+ * Process and remove unused keys from a single file with real-time reporting
+ */
+function processLocaleFile(
+  filePath: string,
+  lang: string,
+  namespace: string,
+  usedKeys: Set<string>,
+  silent = false
+): number {
+  if (!fs.existsSync(filePath)) {
+    return 0
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8')
+    const data = JSON.parse(content) as LocaleData
+    
+    // Remove unused keys and get the list of removed keys
+    const { cleaned, removed } = removeUnusedKeysFromObject(data, usedKeys)
+
+    // Real-time output for each removed key (unless silent mode)
+    if (!silent) {
+      for (const key of removed) {
+        Logger.success(`[${lang}/${namespace}] Removed: ${key}`)
+      }
+    }
+
+    // Write back to file if any keys were removed
+    if (removed.length > 0) {
+      fs.writeFileSync(filePath, JSON.stringify(cleaned, null, 2) + '\n', 'utf-8')
+    }
+
+    return removed.length
+  } catch (error) {
+    Logger.error(`Failed to process ${filePath}: ${error}`)
+    return 0
+  }
+}
+
+/**
+ * Remove unused keys from locale files (exported for testing)
+ */
+export function removeUnusedKeys(
+  localeDir: string,
+  languages: string[],
+  namespaces: string[],
+  usedKeys: Set<string>
+): number {
+  let totalRemoved = 0
+  
+  for (const lang of languages) {
+    for (const namespace of namespaces) {
+      const filePath = path.join(localeDir, lang, `${namespace}.json`)
+      const removed = processLocaleFile(filePath, lang, namespace, usedKeys, true)
+      totalRemoved += removed
+    }
+  }
+  
+  return totalRemoved
 }
 
 /**
@@ -160,6 +259,18 @@ class Logger {
   static summary(text: string) {
     console.log(`\n${this.colors.bright}${text}${this.colors.reset}`)
   }
+
+  static language(text: string) {
+    console.log(`\n${this.colors.blue}${text}${this.colors.reset}`)
+  }
+
+  static sectionTitle(text: string, color: 'red' | 'yellow' = 'red') {
+    console.log(`  ${this.colors[color]}${text}${this.colors.reset}`)
+  }
+
+  static plain(text: string) {
+    console.log(text)
+  }
 }
 
 /**
@@ -168,7 +279,8 @@ class Logger {
 export function reportDifferences(
   usedKeys: I18nKey[],
   localeKeys: Map<string, Set<string>>,
-  options: Required<I18nextCheckerOptions>
+  options: Required<I18nextCheckerOptions>,
+  localeDir?: string
 ): CheckResult {
   const usedKeySet = new Set(usedKeys.map(k => k.key))
   let hasErrors = false
@@ -177,12 +289,7 @@ export function reportDifferences(
   let totalMissing = 0
   let totalUnused = 0
 
-  // Header
-  Logger.title('🌍 i18next Translation Checker')
-  Logger.info(`   Scanning ${usedKeySet.size} translation keys across ${localeKeys.size} languages`)
-  Logger.divider()
-
-  // Check each language
+  // First pass: collect all issues
   for (const [lang, definedKeys] of localeKeys) {
     const missing: string[] = []
     const unused: string[] = []
@@ -191,7 +298,13 @@ export function reportDifferences(
     for (const used of usedKeySet) {
       if (!definedKeys.has(used)) {
         missing.push(used)
+        totalMissing++
+        hasErrors = true
       }
+    }
+    
+    if (missing.length > 0) {
+      missingKeys.set(lang, missing)
     }
 
     // Check for unused keys
@@ -199,51 +312,88 @@ export function reportDifferences(
       for (const defined of definedKeys) {
         if (!usedKeySet.has(defined)) {
           unused.push(defined)
+          totalUnused++
         }
       }
+      
+      if (unused.length > 0) {
+        unusedKeys.set(lang, unused)
+      }
+    }
+  }
+
+  // If no issues found, just print success message and return
+  if (!hasErrors && totalUnused === 0) {
+    Logger.success('✓ All translation keys are in sync')
+    return {
+      hasErrors: false,
+      missingKeys,
+      unusedKeys,
+      usedKeys: usedKeySet,
+      definedKeys: localeKeys,
+    }
+  }
+
+  // If there are issues, show detailed report
+  Logger.title('🌍 i18next Translation Checker')
+  Logger.info(`   Scanning ${usedKeySet.size} translation keys across ${localeKeys.size} languages`)
+  Logger.divider()
+
+  // Report issues for each language
+  for (const [lang, definedKeys] of localeKeys) {
+    const missing = missingKeys.get(lang) || []
+    const unused = unusedKeys.get(lang) || []
+
+    // Skip languages with no issues
+    if (missing.length === 0 && unused.length === 0) {
+      continue
     }
 
-    // Real-time output for this language
-    console.log(`\n${Logger['colors'].blue}Language: ${lang}${Logger['colors'].reset}`)
+    // Language header
+    Logger.language(`Language: ${lang}`)
     Logger.info(`  Defined keys: ${definedKeys.size} | Used keys: ${usedKeySet.size}`)
 
-    // Report missing keys in real-time
+    // Report missing keys
     if (missing.length > 0) {
-      hasErrors = true
-      missingKeys.set(lang, missing)
-      totalMissing += missing.length
-
-      console.log(`  ${Logger['colors'].red}Missing translations: ${missing.length}${Logger['colors'].reset}`)
-
-      missing.sort().forEach(key => {
+      Logger.sectionTitle('Missing translations:', 'red')
+      for (const key of missing) {
         const usage = usedKeys.find(k => k.key === key)
         if (usage) {
           Logger.error(`${key}`)
           Logger.dim(`    └─ ${usage.file}:${usage.line}`)
         }
-      })
-    } else {
-      Logger.success('All translations present')
+      }
     }
 
-    // Report unused keys in real-time
-    if (options.checkUnused) {
-      if (unused.length > 0) {
-        unusedKeys.set(lang, unused)
-        totalUnused += unused.length
-
-        console.log(`  ${Logger['colors'].yellow}Unused translations: ${unused.length}${Logger['colors'].reset}`)
-
-        const displayLimit = 10
-        unused.sort().slice(0, displayLimit).forEach(key => {
-          Logger.warning(`${key}`)
-        })
-        if (unused.length > displayLimit) {
-          Logger.dim(`    ... and ${unused.length - displayLimit} more`)
-        }
-      } else {
-        Logger.success('No unused translations')
+    // Report unused keys
+    if (unused.length > 0) {
+      Logger.sectionTitle('Unused translations:', 'yellow')
+      for (const key of unused) {
+        Logger.warning(`${key}`)
       }
+    }
+  }
+
+  // Remove unused keys if enabled
+  if (options.removeUnused && options.checkUnused && totalUnused > 0 && localeDir) {
+    Logger.divider()
+    Logger.title('🧹 Cleaning unused translations')
+    Logger.divider()
+    
+    let totalRemoved = 0
+    
+    // Process each file and output real-time
+    for (const lang of options.languages) {
+      for (const namespace of options.namespaces) {
+        const filePath = path.join(localeDir, lang, `${namespace}.json`)
+        const removed = processLocaleFile(filePath, lang, namespace, usedKeySet)
+        totalRemoved += removed
+      }
+    }
+    
+    if (totalRemoved > 0) {
+      Logger.divider()
+      Logger.success(`Total: Removed ${totalRemoved} unused translation(s)`)
     }
   }
 
@@ -252,20 +402,20 @@ export function reportDifferences(
   Logger.summary('📊 Summary')
 
   if (hasErrors) {
-    console.log(`${Logger['colors'].red}✗ Check failed${Logger['colors'].reset}`)
-    console.log(`  ${Logger['colors'].red}Missing: ${totalMissing}${Logger['colors'].reset}`)
-    if (totalUnused > 0) {
-      console.log(`  ${Logger['colors'].yellow}Unused: ${totalUnused}${Logger['colors'].reset}`)
+    Logger.error('Check failed')
+    Logger.info(`  Missing: ${totalMissing}`)
+    if (totalUnused > 0 && !options.removeUnused) {
+      Logger.info(`  Unused: ${totalUnused}`)
     }
-  } else if (totalUnused > 0) {
-    console.log(`${Logger['colors'].green}✓ All required translations present${Logger['colors'].reset}`)
-    console.log(`  ${Logger['colors'].yellow}Unused: ${totalUnused}${Logger['colors'].reset}`)
+  } else if (totalUnused > 0 && !options.removeUnused) {
+    Logger.success('All required translations present')
+    Logger.info(`  Unused: ${totalUnused}`)
   } else {
-    console.log(`${Logger['colors'].green}✓ Perfect! All translations match${Logger['colors'].reset}`)
-    console.log(`  ${Logger['colors'].green}Keys checked: ${usedKeySet.size}${Logger['colors'].reset}`)
+    Logger.success('Perfect! All translations match')
+    Logger.info(`  Keys checked: ${usedKeySet.size}`)
   }
 
-  console.log('') // Empty line at the end
+  Logger.plain('') // Empty line at the end
 
   return {
     hasErrors,
@@ -287,6 +437,7 @@ export function i18nextChecker(options: I18nextCheckerOptions = {}): Plugin {
     namespaces: options.namespaces ?? ['console'],
     failOnError: options.failOnError ?? false,
     checkUnused: options.checkUnused ?? true,
+    removeUnused: options.removeUnused ?? false,
   }
 
   let projectRoot = ''
@@ -309,7 +460,7 @@ export function i18nextChecker(options: I18nextCheckerOptions = {}): Plugin {
       const localeKeys = readLocaleFiles(localePath, opts.languages, opts.namespaces)
 
       // Compare and report (output is handled internally)
-      const { hasErrors } = reportDifferences(usedKeys, localeKeys, opts)
+      const { hasErrors } = reportDifferences(usedKeys, localeKeys, opts, localePath)
 
       if (hasErrors && opts.failOnError) {
         throw new Error('i18next check failed: missing translation keys found')

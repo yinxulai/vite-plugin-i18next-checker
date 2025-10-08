@@ -59,6 +59,7 @@ export default defineConfig({
 | `namespaces` | `string[]` | `['console']` | 命名空间文件名数组（不含 .json 扩展名）|
 | `failOnError` | `boolean` | `false` | 发现缺失键时是否使构建失败 |
 | `checkUnused` | `boolean` | `true` | 是否检查未使用的翻译键 |
+| `removeUnused` | `boolean` | `false` | 是否自动从语言文件中删除未使用的键（仅在 `checkUnused` 为 `true` 时有效）|
 
 ## 目录结构
 
@@ -203,10 +204,75 @@ export default defineConfig({
       
       // 检查未使用的键（有助于清理）
       checkUnused: true,
+      
+      // 自动从语言文件中删除未使用的键
+      // ⚠️ 谨慎使用！这会修改你的语言文件
+      removeUnused: false,
     }),
   ],
 })
 ```
+
+## 自动清理未使用的键
+
+插件可以自动从语言文件中删除未使用的翻译键。这对于维护干净的翻译文件和删除已弃用或过时的键非常有用。
+
+### 使用方法
+
+启用 `removeUnused` 选项：
+
+```typescript
+i18nextChecker({
+  checkUnused: true,    // 必须启用
+  removeUnused: true,   // 启用自动清理
+})
+```
+
+### 工作原理
+
+1. 插件扫描你的源代码以找到所有实际使用的翻译键
+2. 将这些键与语言文件中定义的键进行比较
+3. 当启用 `removeUnused` 时，它会删除源代码中未找到的所有键
+4. 语言文件会以正确的 JSON 格式重新写入
+
+### 重要提示
+
+⚠️ **谨慎使用！** 此功能会修改你的语言文件：
+
+- 确保你有备份或使用版本控制（Git）
+- 键将从文件中永久删除
+- 删除后变为空的嵌套对象也会被删除
+- 此功能仅在 `checkUnused` 设置为 `true` 时有效
+
+### 示例
+
+**清理前** (`public/locales/zh-CN/common.json`)：
+
+```json
+{
+  "button": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除"
+  },
+  "deprecated": {
+    "oldFeature": "旧功能"
+  }
+}
+```
+
+如果你的代码中只使用了 `button.save` 和 `button.cancel`，**清理后**：
+
+```json
+{
+  "button": {
+    "save": "保存",
+    "cancel": "取消"
+  }
+}
+```
+
+注意 `button.delete` 被删除了，整个 `deprecated` 对象也被删除了，因为它没有任何被使用的键。
 
 ## 开发
 

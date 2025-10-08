@@ -67,6 +67,7 @@ export default defineConfig({
 | `namespaces` | `string[]` | `['console']` | Array of namespace file names (without .json extension) |
 | `failOnError` | `boolean` | `false` | Whether to fail the build when missing keys are found |
 | `checkUnused` | `boolean` | `true` | Whether to check for unused translation keys |
+| `removeUnused` | `boolean` | `false` | Whether to automatically remove unused keys from locale files (only works when `checkUnused` is `true`) |
 
 ## Directory Structure
 
@@ -211,10 +212,75 @@ export default defineConfig({
       
       // Check for unused keys (helpful for cleanup)
       checkUnused: true,
+      
+      // Automatically remove unused keys from locale files
+      // ⚠️ Use with caution! This will modify your locale files
+      removeUnused: false,
     }),
   ],
 })
 ```
+
+## Automatic Cleanup of Unused Keys
+
+The plugin can automatically remove unused translation keys from your locale files. This is useful for maintaining clean translation files and removing deprecated or obsolete keys.
+
+### Usage
+
+Enable the `removeUnused` option:
+
+```typescript
+i18nextChecker({
+  checkUnused: true,    // Must be enabled
+  removeUnused: true,   // Enable automatic cleanup
+})
+```
+
+### How It Works
+
+1. The plugin scans your source code to find all translation keys actually used
+2. It compares these with the keys defined in your locale files
+3. When `removeUnused` is enabled, it removes any keys that are not found in the source code
+4. The locale files are rewritten with proper JSON formatting
+
+### Important Notes
+
+⚠️ **Use with caution!** This feature will modify your locale files:
+
+- Make sure you have backups or use version control (Git)
+- Keys will be permanently deleted from the files
+- Nested objects that become empty after removal will also be deleted
+- The feature only works when `checkUnused` is set to `true`
+
+### Example
+
+**Before cleanup** (`public/locales/en-US/common.json`):
+
+```json
+{
+  "button": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "deprecated": {
+    "oldFeature": "Old Feature"
+  }
+}
+```
+
+If only `button.save` and `button.cancel` are used in your code, **after cleanup**:
+
+```json
+{
+  "button": {
+    "save": "Save",
+    "cancel": "Cancel"
+  }
+}
+```
+
+Note that `button.delete` was removed, and the entire `deprecated` object was removed because it had no used keys.
 
 ## Development
 

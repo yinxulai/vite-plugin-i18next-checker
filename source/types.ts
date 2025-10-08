@@ -34,6 +34,13 @@ export interface I18nextCheckerOptions {
    * @default true
    */
   checkUnused?: boolean
+
+  /**
+   * Whether to automatically remove unused keys from locale files
+   * Only works when checkUnused is true
+   * @default false
+   */
+  removeUnused?: boolean
 }
 
 export interface I18nKey {
