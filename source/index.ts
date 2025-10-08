@@ -1,5 +1,5 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import type { Plugin } from 'vite'
 import type { I18nextCheckerOptions, I18nKey, LocaleData, CheckResult } from './types'
 

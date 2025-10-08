@@ -17,7 +17,7 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'mjs' : 'js'}`,
     },
     rollupOptions: {
-      external: ['vite', 'fs', 'path', 'glob'],
+      external: ['vite', 'node:fs', 'node:path', 'glob'],
       output: {
         globals: {
           vite: 'vite',
